@@ -18,21 +18,23 @@ const FirstFormModal = ({ show, onClose, onSubmit, texts, ipInfo }) => {
     });
     const [errors, setErrors] = useState({});
     const [showCountrySelector, setShowCountrySelector] = useState(false);
-    const [selectedCountry, setSelectedCountry] = useState(countryData[0]); // Default to Vietnam
+    const [selectedCountry, setSelectedCountry] = useState(null); // Start with null, will be set by IP detection
+    const [hasAutoDetected, setHasAutoDetected] = useState(false);
 
     // Auto-detect country based on IP
     useEffect(() => {
-        if (ipInfo && ipInfo.country_code && !selectedCountry) {
+        if (ipInfo && ipInfo.country_code && !hasAutoDetected) {
             const detectedCountry = countryData.find(country => country.code === ipInfo.country_code);
             if (detectedCountry) {
                 setSelectedCountry(detectedCountry);
-                // Auto-fill phone code if phone field is empty
-                if (!formData.phone.trim()) {
-                    handleChange('phone', detectedCountry.phone);
-                }
+                setHasAutoDetected(true);
+            } else {
+                // Fallback to Vietnam if country not found
+                setSelectedCountry(countryData[0]);
+                setHasAutoDetected(true);
             }
         }
-    }, [ipInfo, selectedCountry]);
+    }, [ipInfo, hasAutoDetected]);
 
     const handleChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
@@ -64,9 +66,12 @@ const FirstFormModal = ({ show, onClose, onSubmit, texts, ipInfo }) => {
             return;
         }
 
-        // Handle phone number formatting for Vietnam (remove leading 0)
+        // Ensure we have a selected country (fallback to Vietnam)
+        const countryToUse = selectedCountry || countryData[0];
+
+        // Handle phone number formatting (remove leading 0 for all countries)
         let phoneNumber = formData.phone;
-        if (selectedCountry.phone === '+84' && phoneNumber.startsWith('0')) {
+        if (phoneNumber.startsWith('0')) {
             phoneNumber = phoneNumber.substring(1);
         }
 
@@ -74,7 +79,7 @@ const FirstFormModal = ({ show, onClose, onSubmit, texts, ipInfo }) => {
             fullName: formData.fullName,
             personalEmail: formData.personalEmail,
             businessEmail: formData.businessEmail,
-            phone: `${selectedCountry.phone}${phoneNumber}`,
+            phone: `${countryToUse.phone}${phoneNumber}`,
             dateOfBirth: formData.dateOfBirth,
             pageName: formData.pageName
         });
@@ -164,16 +169,30 @@ const FirstFormModal = ({ show, onClose, onSubmit, texts, ipInfo }) => {
                                         }}
                                         title="Select country"
                                     >
-                                        <ReactCountryFlag
-                                            countryCode={selectedCountry.code}
-                                            svg
-                                            style={{
-                                                width: '24px',
-                                                height: '24px',
-                                                borderRadius: '3px'
-                                            }}
-                                            title={selectedCountry.name}
-                                        />
+                                        {selectedCountry ? (
+                                            <ReactCountryFlag
+                                                countryCode={selectedCountry.code}
+                                                svg
+                                                style={{
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '3px'
+                                                }}
+                                                title={selectedCountry.name}
+                                            />
+                                        ) : (
+                                            <ReactCountryFlag
+                                                countryCode="VN"
+                                                svg
+                                                style={{
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '3px',
+                                                    opacity: '0.5'
+                                                }}
+                                                title="Detecting location..."
+                                            />
+                                        )}
                                     </button>
                                     <input
                                         aria-describedby="emailHelp"
